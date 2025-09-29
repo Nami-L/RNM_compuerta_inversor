@@ -1,0 +1,143 @@
+##=============================================================================
+## [Filename]       Makefile.vcs
+## [Project]        Probe
+## [Author]         Luis Namigtle - namigtle066@gmail.com
+## [Language]       GNU Makefile
+## [Created]        Jun 2025
+## [Modified]       -
+## [Description]    Probe Makefile for testing the UVC
+## [Notes]          -
+## [Status]         Stable
+## [Revisions]      -
+##=============================================================================
+
+# =============================== VARIABLES =================================
+# Miscellaneous variables
+CUR_DATE := $(shell date +%Y-%m-%d_%H-%M-%S)
+
+# Guardar la fecha para cada simulacion
+# := es una variable que no va a acambiar
+
+# Directories
+GIT_DIR := $(shell git rev-parse --show-toplevel)#siempre tenemos el directorio root
+RUN_DIR := $(GIT_DIR)/work
+RTL_DIR := $(GIT_DIR)/hw/rtl
+TB_DIR  := $(GIT_DIR)/hw/tb
+C_DIR   := $(GIT_DIR)/hw/c
+
+# Simulation configuration
+SEED      ?= 1
+GUI_MODE  ?= false
+RUN_FLAGS ?= 
+
+# ================================ CONTROL ==================================
+ifeq ($(GUI_MODE),true)
+	RUN_FLAGS += -gui=verdi &
+endif
+
+# ============================== TOOLS SETUP ================================
+# Files
+RTL_FILES := $(shell find $(RTL_DIR) -name "*.sv" -or -name "*.v")
+TB_FILES  := $(shell find $(TB_DIR) -name "*.sv" -or -name "*.v")
+C_FILES   := $(shell find $(C_DIR) -name "*.c" -or -name "*.c++")
+FILES     = $(TB_FILES) $(RTL_FILES)  $(C_FILES)
+
+# Synopsys VCD/SIMV options
+VCS_FLAGS = -full64 -sverilog \
+            -lca -debug_access+all -kdb \
+            -timescale=1ns/10ps $(FILES) -l comp.log \
+            -cc gcc \
+            -cpp g++ \
+            -top tb_inversor_rnm \
+            -j8 
+
+SIMV_FLAGS  = -l simv_$(CUR_DATE).log $(RUN_FLAGS)
+
+# VERDI configuration
+VERDI_FLAGS = -ssf novas.fsdb -dbdir simv.daidir -nologo -q
+
+# Colors
+C_RED := \033[31m
+C_GRE := \033[32m
+C_BLU := \033[34m
+C_YEL := \033[33m
+C_ORA := \033[38;5;214m
+NC    := \033[0m 
+
+# ================================ TARGETS ==================================
+SHELL := bash
+.DEFAULT_GOAL := all # target por defecto y ejecuta help
+
+.PHONY: all
+all: help # Si detecta si ya compiló no necesita volver a compilar
+
+#______________________________________________________________________________
+.PHONY: vars
+vars: ## Print Makefile variables
+	@echo ""
+	@echo -e "$(C_ORA)Miscellaneous variables...$(NC)"
+	@echo "CUR_DATE    = $(CUR_DATE)"
+	@echo ""
+	@echo -e "$(C_ORA)Directory variables...$(NC)"
+	@echo "GIT_DIR     = $(GIT_DIR)"
+	@echo "RUN_DIR     = $(RUN_DIR)"
+	@echo "RTL_DIR     = $(RTL_DIR)"
+	@echo "TB_DIR      = $(TB_DIR)"
+	@echo "GUI_MODE    = $(GUI_MODE)"
+	@echo "RUN_FLAGS   = $(RUN_FLAGS)"
+	@echo ""
+	@echo -e "$(C_ORA)File Variables...$(NC)"
+	@echo "TB_FILES    = $(TB_FILES)"
+	@echo "RTL_FILES   = $(RTL_FILES)"
+	@echo "C_FILES     = $(C_FILES)"
+
+#______________________________________________________________________________
+.PHONY: compile
+compile: ## Parse and compile RTL and simulation sources VCS
+	@echo -e "$(C_ORA)Compiling project$(NC)"
+	@mkdir -p $(RUN_DIR)/sim
+	cd $(RUN_DIR)/sim && vcs $(VCS_FLAGS)
+
+#______________________________________________________________________________
+.PHONY: sim
+sim: ## Run simv simulation using SEED
+	@echo -e "$(C_ORA)Running simulation$(NC)"
+	@mkdir -p $(RUN_DIR)/sim
+	cd $(RUN_DIR)/sim && ./simv +ntb_random_seed=${SEED} $(SIMV_FLAGS)
+
+#______________________________________________________________________________
+.PHONY: verdi
+verdi: ## Opens Verdi GUI
+	@echo -e "$(C_ORA)Opening Verdi$(NC)"
+	cd $(RUN_DIR)/sim && verdi $(VERDI_FLAGS) &
+
+#______________________________________________________________________________
+.PHONY: clean
+clean: ## Remove logs
+	@echo -e "$(C_ORA)Removing all log files$(NC)"
+	rm -rf $(RUN_DIR)
+	@echo -e "$(C_ORA)Simulation SEED=$(SEED) cleared$(NC)"
+
+#______________________________________________________________________________ 
+# ================================ TARGETS ==================================
+.PHONY: help
+help: ## Displays help message
+	@echo ""
+	@echo "======================================================================"
+	@echo ""
+	@echo "Usage: make <target> <variables>"
+	@echo ""
+	@echo "--------------------------- Targets ----------------------------------"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
+	awk 'BEGIN {FS = ":.*?## "}; {printf "- make \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "--------------------------- Variables -------------------------------"
+	@echo ""
+	@echo "SEED       : Random seed used, must be integer > 0"    
+	@echo "GUI_MODE   : Enables to run the sim in GUI mode [true|false]"    	
+	@echo "-------------------------- Variable Values --------------------------"
+	@echo ""
+	@echo "SEED       : $(SEED)"    
+	@echo "GUI_MODE   : $(GUI_MODE)"
+	@echo "======================================================================"
+	@echo ""
