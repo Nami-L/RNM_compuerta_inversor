@@ -51,6 +51,7 @@ VCS_FLAGS = -full64 -sverilog \
             -top tb_inversor_rnm \
             -j8 
 
+# Simulation
 SIMV_FLAGS  = -l simv_$(CUR_DATE).log $(RUN_FLAGS)
 
 # VERDI configuration

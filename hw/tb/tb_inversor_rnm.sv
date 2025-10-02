@@ -1,42 +1,37 @@
-`timescale 1ps / 1ps // ¡PRECISIÓN MÁXIMA! Unidad y resolución en 1 picosegundo
+`timescale 1ps / 1ps 
 
 module tb_inversor_rnm;
 
-    // Parámetros de Simulación (para claridad)
     parameter real VDD = 1.8;
     parameter real VSS = 0.0;
-    parameter time HALF_PERIOD = 50ns; // Meseta estable: 50ns
-    parameter time STEP_TRANSITION_TIME = 10ps; // Tiempo ultrarrápido para el step de VIN
-    parameter int NUM_CYCLES = 6;      
+    parameter time MED_PERIODO = 50ns; 
+    parameter time TIEMPO_PASO = 10ps;
+    parameter int CICLOS = 5;      
     
         real vin;
     real vout;
-    
-    // Instanciar el inversor RNM (asegúrate de que tu RTL usa los retardos de propagación)
+    logic vout_int;
+    // Instanciar el inversor 
     inversor_rnm DUT (
         .vin(vin),
         .vout(vout)
     );
-    
-    // --- 1. Generación de Estímulos y Secuencia Principal ---
+      assign vout_int = vout > 0.9 ? 1 : 0;
+
     initial begin
-        
+        $monitor("T=%t | Vin=%.3fV | Vout=%.3f", $realtime, vin, vout);
         $display("=== [TB] Iniciando simulación de precisión ===");
         
         vin = VSS; // Inicio en 0V
-        #30ps;    // Pequeño retardo de estabilización
-        
-        // Ejecutamos 4 ciclos completos de subida/bajada de VIN
-        repeat (NUM_CYCLES  ) begin
- // 1. Pulso de Entrada SUBIDA (Step Forzado)
-            bajar_voltaje(VSS, VDD, STEP_TRANSITION_TIME); 
+    
+            repeat (CICLOS) begin
+            subir_voltaje(VSS, VDD, TIEMPO_PASO); 
             
-            #HALF_PERIOD; // Meseta de 50ns ALTO (Estabilidad)
+            #MED_PERIODO; 
             
-            // 2. Pulso de Entrada BAJADA (Step Forzado)
-            subir_voltaje(VDD, VSS, STEP_TRANSITION_TIME);
+            bajar_voltaje(VDD, VSS, TIEMPO_PASO);
             
-            #HALF_PERIOD; // Meseta de 50ns BAJO (Estabilidad)
+            #MED_PERIODO; 
         end
         
         $display("\n[%t] === Simulación completada ===", $realtime);
@@ -45,11 +40,10 @@ module tb_inversor_rnm;
     
     task subir_voltaje(input real inicio, input real fin, input time duracion);
         real paso;
-        int num_pasos = 10; // Aumentamos los pasos para una rampa más suave
+        int num_pasos = 10; 
         paso = (fin - inicio) / num_pasos;
         
         for (int i = 0; i <= num_pasos; i++) begin
-            // Genera el valor de voltaje
             vin = inicio + i * paso;
                         #(duracion / num_pasos); 
 
@@ -76,3 +70,4 @@ module tb_inversor_rnm;
     end
 
 endmodule
+
