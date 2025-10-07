@@ -1,0 +1,7 @@
+#Directories
+work/
+
+# Files
+*.o
+*.exe
+*.pdf
